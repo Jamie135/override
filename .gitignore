@@ -1,0 +1,11 @@
+*.bin
+*.o
+*.a
+*.so
+*.out
+*.exe
+*.elf
+*.ko
+a.out
+core
+core.*
