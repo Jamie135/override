@@ -57,14 +57,14 @@ ssh level00@127.0.0.1 -p 4242
 level00
 ```
 
-## 3. Approches
+## 3. Commandes
 
 Pour sortir un binaire de la VM vers la machine hôte:
 ```bash
 scp -P 4242 levelxx@127.0.0.1:/home/user/levelxx/levelxx ~/Documents/42/override/levelxx/levelxx.bin
 ```
 
-Desassembler le binaire:
+Désassembler le binaire:
 ```bash
 objdump -d ./levelxx
 ```
@@ -72,14 +72,31 @@ objdump -d ./levelxx
 Debugger le binaire:
 ```bash
 gdb ./levelxx
-disas main
+(gdb) disas main
+```
+
+Set breakpoint:
+```bash
+(gdb) break *0x<adresse de l'instruction>
+(gdb) run
+```
+
+Examiner une variable et se repérer dans les instructions:
+```bash
+(gdb) x/s 0x<adresse de variable>
+(gdb) x/i $pc
+```
+
+Déplacer à la prochaine instruction:
+```bash
+(gdb) stepi
 ```
 
 Inspecter les fonctions cachées :
 
 ```bash
-info functions
-disas <fonction>
+(gdb) info functions
+(gdb) disas <fonction>
 ```
 
 ## 4. Outils
