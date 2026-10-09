@@ -61,7 +61,7 @@ level00
 
 Pour sortir un binaire de la VM vers la machine hôte:
 ```bash
-scp -P 4242 levelxx@127.0.0.1:/home/user/levelxx/levelxx ~/Documents/42/override/levelxx/levelxx.bin
+scp -P 4242 levelxx@127.0.0.1:/home/users/levelxx/levelxx ~/Documents/42/override/levelxx/levelxx.bin
 ```
 
 Désassembler le binaire:
