@@ -69,6 +69,11 @@ Désassembler le binaire:
 objdump -d ./levelxx
 ```
 
+Extraire les sections de données:
+```bash
+objdump -s -j <section> ./levelxx
+```
+
 Debugger le binaire:
 ```bash
 gdb ./levelxx

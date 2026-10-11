@@ -1,4 +1,42 @@
 # level01
+## 0. Prérequis
+
+### Qu'est-ce qu'un ELF ?
+
+**ELF** (*Executable and Linkable Format*) est le format des exécutables (et
+des bibliothèques) sous Linux. C'est simplement la façon dont les binaires de ce projet sont organisés sur le disque : un en-tête qui décrit le programme,
+puis le contenu découpé en **sections** rangées par rôle (le code d'un côté,
+les données de l'autre, etc.). Le système lit cet en-tête pour savoir quoi
+charger en mémoire et avec quels droits (lecture / écriture / exécution).
+
+### Les sections d'un ELF
+
+```
+┌─────────┬─────────────────────────────────────────────────────────────────┬────────────────────────────┐
+│ Section │                             Contenu                             │ Modifiable à l'exécution ? │
+├─────────┼─────────────────────────────────────────────────────────────────┼────────────────────────────┤
+│ .text   │ le code (les instructions)                                      │ non (exécutable)           │
+├─────────┼─────────────────────────────────────────────────────────────────┼────────────────────────────┤
+│ .rodata │ constantes en lecture seule (chaînes littérales…)               │ non                        │
+├─────────┼─────────────────────────────────────────────────────────────────┼────────────────────────────┤
+│ .data   │ variables globales initialisées (int x = 5;)                    │ oui                        │
+├─────────┼─────────────────────────────────────────────────────────────────┼────────────────────────────┤
+│ .bss    │ variables globales à zéro (int x; → ex. a_user_name de level01) │ oui                        │
+└─────────┴─────────────────────────────────────────────────────────────────┴────────────────────────────┘
+```
+
+### Lecture de l'assembleur 64 bits
+
+Ce binaire est en **64 bits** (ELF x86-64), désassemblé en syntaxe **AT&T**
+(`objdump -d`). Deux rappels suffisent pour suivre la suite :
+
+- **Sens de lecture** : `instr source, destination` (la destination est à
+  droite). Ex. `mov %rsp, %rbp` signifie `rbp = rsp`.
+- **Passage des arguments** : contrairement au 32 bits (qui passait par la
+  pile), les 6 premiers arguments d'un appel passent par les registres, dans
+  l'ordre `rdi, rsi, rdx, rcx, r8, r9`. La valeur de retour est dans `rax`.
+  Pour lire un `call`, on remonte donc juste au-dessus pour voir comment ces
+  registres ont été remplis.
 
 ## 1. Analyse
 
