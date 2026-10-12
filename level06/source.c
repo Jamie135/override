@@ -27,11 +27,13 @@ int	auth(char *login, unsigned int serial)
 	hash = (login[3] ^ 0x1337) + 0x5eeded; /* = (login[3] ^ 4919) + 6221293 */
 	for (i = 0; i < len; i++)
 	{
-		if (login[i] <= 31)	/* caractère non imprimable <= 31 en ascii→ refus */
+		/* caractère non imprimable (<= 31 en ascii) → refus */
+		if (login[i] <= 31)
 			return (1);
 		hash += (login[i] ^ hash) % 1337;
 	}
 
+	/* le hash du login est calculé */
 	if (serial == hash)
 		return (0);
 	return (1);
